@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Participants</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card {
+            transition: all 0.3s ease;
+        }
+
+        .card.hidden {
+            display: none;
+        }
+
+        .timer-controls {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            color: white;
+        }
+
+        .timer-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            min-width: 4rem;
+            text-align: center;
+        }
+
+        .timer-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .timer-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <!-- Timer Controls -->
+    <div class="timer-controls">
+        <div class="timer-display" id="timerDisplay">40</div>
+        <button class="timer-button" id="playPauseBtn">▶</button>
+        <button class="timer-button" id="stopBtn">⏹</button>
+    </div>
+
+    <!-- Main Screen -->
+    <div class="container mx-auto px-4 py-8">
+        <!-- Instructions -->
+        <div class="mb-8 p-4 bg-blue-50 rounded-lg">
+            <p class="text-blue-800">Please open presentation.html on your second monitor before starting.</p>
+        </div>
+
+        <!-- Search Box -->
+        <div class="mb-8">
+            <input type="text" id="searchInput" placeholder="Search by name or company..."
+                class="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        </div>
+
+        <!-- Participant Grid -->
+        <div id="participantGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <!-- Cards will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <!-- Load participants data -->
+    <script src="data.js"></script>
+
+    <script>
+        // DOM Elements
+        const participantGrid = document.getElementById('participantGrid');
+        const searchInput = document.getElementById('searchInput');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const stopBtn = document.getElementById('stopBtn');
+
+        // Timer variables
+        let timeLeft = 40;
+        let timerInterval;
+        let isPaused = true;
+
+        // Timer functions
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            timeLeft = 40;
+            timerInterval = setInterval(updateTimer, 1000);
+            localStorage.setItem('timerState', 'running');
+            localStorage.setItem('playPauseBtn', '⏸');
+            localStorage.setItem('timerDisplay', '40');
+            playPauseBtn.textContent = '⏸';
+            isPaused = false;
+        }
+
+        function updateTimer() {
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                localStorage.setItem('timerState', 'stopped');
+                localStorage.setItem('playPauseBtn', '▶');
+                localStorage.setItem('timerDisplay', '40');
+                playPauseBtn.textContent = '▶';
+                return;
+            }
+            timeLeft--;
+            timerDisplay.textContent = timeLeft;
+            localStorage.setItem('timerDisplay', timeLeft.toString());
+        }
+
+        function togglePause() {
+            if (!timerInterval || isPaused) {
+                startTimer();
+            } else {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                localStorage.setItem('timerState', 'paused');
+                localStorage.setItem('playPauseBtn', '▶');
+                playPauseBtn.textContent = '▶';
+                isPaused = true;
+            }
+            localStorage.setItem('timerControl', 'toggle');
+            localStorage.removeItem('timerControl');
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            timeLeft = 40;
+            timerDisplay.textContent = '40';
+            localStorage.setItem('timerState', 'stopped');
+            localStorage.setItem('timerDisplay', '40');
+            localStorage.setItem('playPauseBtn', '▶');
+            playPauseBtn.textContent = '▶';
+            isPaused = true;
+            localStorage.setItem('timerControl', 'stop');
+            localStorage.removeItem('timerControl');
+        }
+
+        // Show presentation
+        function showPresentation(participant) {
+            try {
+                localStorage.setItem('presentationImage', participant.presentation);
+                startTimer();
+            } catch (e) {
+                console.error('LocalStorage not available:', e);
+            }
+        }
+
+        // Create participant cards
+        function createParticipantCards() {
+            participants.forEach(participant => {
+                const card = document.createElement('div');
+                card.className = 'card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow';
+                card.innerHTML = `
+                    <img src="${participant.image}" alt="${participant.fullName}" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold text-gray-800">${participant.fullName}</h3>
+                        <p class="text-sm text-gray-600">${participant.company}</p>
+                    </div>
+                `;
+                card.addEventListener('click', () => showPresentation(participant));
+                participantGrid.appendChild(card);
+            });
+        }
+
+        // Search functionality
+        function filterParticipants(searchTerm) {
+            const cards = document.querySelectorAll('.card');
+            const searchLower = searchTerm.toLowerCase();
+
+            cards.forEach(card => {
+                const name = card.querySelector('h3').textContent.toLowerCase();
+                const company = card.querySelector('p').textContent.toLowerCase();
+                if (name.includes(searchLower) || company.includes(searchLower)) {
+                    card.classList.remove('hidden');
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+        }
+
+        // Event Listeners
+        searchInput.addEventListener('input', (e) => filterParticipants(e.target.value));
+        playPauseBtn.addEventListener('click', togglePause);
+        stopBtn.addEventListener('click', stopTimer);
+
+        // Initialize
+        createParticipantCards();
+
+        // Listen for timer control events from presentation window
+        window.addEventListener('storage', (e) => {
+            switch (e.key) {
+                case 'timerDisplay':
+                    if (e.newValue) {
+                        timerDisplay.textContent = e.newValue;
+                        timeLeft = parseInt(e.newValue);
+                    }
+                    break;
+                case 'playPauseBtn':
+                    if (e.newValue) {
+                        playPauseBtn.textContent = e.newValue;
+                        isPaused = e.newValue === '▶';
+                    }
+                    break;
+                case 'timerState':
+                    if (e.newValue === 'running' && !timerInterval) {
+                        startTimer();
+                    } else if (e.newValue === 'stopped') {
+                        stopTimer();
+                    } else if (e.newValue === 'paused') {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                        isPaused = true;
+                    }
+                    break;
+            }
+        });
+
+        // Initialize timer state from localStorage
+        const storedDisplay = localStorage.getItem('timerDisplay');
+        const storedState = localStorage.getItem('timerState');
+        const storedButton = localStorage.getItem('playPauseBtn');
+
+        if (storedDisplay) {
+            timerDisplay.textContent = storedDisplay;
+            timeLeft = parseInt(storedDisplay);
+        }
+        if (storedButton) {
+            playPauseBtn.textContent = storedButton;
+            isPaused = storedButton === '▶';
+        }
+        if (storedState === 'running') {
+            startTimer();
+        }
+    </script>
+</body>
+
+</html>

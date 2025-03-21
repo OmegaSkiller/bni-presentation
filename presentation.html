@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Presentation</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .presentation-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .presentation-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .timer-controls {
+            position: absolute;
+            top: 20rem;
+            right: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            color: white;
+        }
+
+        .timer-display {
+            font-size: 1.5rem;
+            font-weight: bold;
+            min-width: 4rem;
+            text-align: center;
+        }
+
+        .timer-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .timer-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="presentation-container">
+        <img id="presentationImage" class="presentation-image" src="placeholder.jpg" alt="Presentation">
+        <div class="timer-controls">
+            <div class="timer-display" id="timerDisplay">40</div>
+            <button class="timer-button" id="playPauseBtn">▶</button>
+            <button class="timer-button" id="stopBtn">⏹</button>
+        </div>
+    </div>
+    <script>
+        const presentationImage = document.getElementById('presentationImage');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const stopBtn = document.getElementById('stopBtn');
+
+        // Timer variables
+        let timeLeft = 40;
+        let timerInterval;
+        let isPaused = true;
+
+        // Timer functions
+        function startTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            timeLeft = 40;
+            timerInterval = setInterval(updateTimer, 1000);
+            localStorage.setItem('timerState', 'running');
+            localStorage.setItem('playPauseBtn', '⏸');
+            localStorage.setItem('timerDisplay', '40');
+            playPauseBtn.textContent = '⏸';
+            isPaused = false;
+        }
+
+        function updateTimer() {
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                localStorage.setItem('timerState', 'stopped');
+                localStorage.setItem('playPauseBtn', '▶');
+                localStorage.setItem('timerDisplay', '40');
+                playPauseBtn.textContent = '▶';
+                return;
+            }
+            timeLeft--;
+            timerDisplay.textContent = timeLeft;
+            localStorage.setItem('timerDisplay', timeLeft.toString());
+        }
+
+        function togglePause() {
+            if (!timerInterval || isPaused) {
+                startTimer();
+            } else {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                localStorage.setItem('timerState', 'paused');
+                localStorage.setItem('playPauseBtn', '▶');
+                playPauseBtn.textContent = '▶';
+                isPaused = true;
+            }
+            localStorage.setItem('timerControl', 'toggle');
+            localStorage.removeItem('timerControl');
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            timeLeft = 40;
+            timerDisplay.textContent = '40';
+            localStorage.setItem('timerState', 'stopped');
+            localStorage.setItem('timerDisplay', '40');
+            localStorage.setItem('playPauseBtn', '▶');
+            playPauseBtn.textContent = '▶';
+            isPaused = true;
+            localStorage.setItem('timerControl', 'stop');
+            localStorage.removeItem('timerControl');
+        }
+
+        // Listen for changes in localStorage
+        window.addEventListener('storage', (e) => {
+            switch (e.key) {
+                case 'presentationImage':
+                    if (e.newValue) {
+                        presentationImage.src = e.newValue;
+                    } else {
+                        presentationImage.src = 'placeholder.jpg';
+                    }
+                    break;
+                case 'timerDisplay':
+                    if (e.newValue) {
+                        timerDisplay.textContent = e.newValue;
+                        timeLeft = parseInt(e.newValue);
+                    }
+                    break;
+                case 'playPauseBtn':
+                    if (e.newValue) {
+                        playPauseBtn.textContent = e.newValue;
+                        isPaused = e.newValue === '▶';
+                    }
+                    break;
+                case 'timerState':
+                    if (e.newValue === 'running' && !timerInterval) {
+                        startTimer();
+                    } else if (e.newValue === 'stopped') {
+                        stopTimer();
+                    } else if (e.newValue === 'paused') {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                        isPaused = true;
+                    }
+                    break;
+            }
+        });
+
+        // Timer control event handlers
+        playPauseBtn.addEventListener('click', togglePause);
+        stopBtn.addEventListener('click', stopTimer);
+
+        // Initialize with placeholder if no presentation is set
+        if (!localStorage.getItem('presentationImage')) {
+            presentationImage.src = 'placeholder.jpg';
+        }
+
+        // Initialize timer state from localStorage
+        const storedDisplay = localStorage.getItem('timerDisplay');
+        const storedState = localStorage.getItem('timerState');
+        const storedButton = localStorage.getItem('playPauseBtn');
+
+        if (storedDisplay) {
+            timerDisplay.textContent = storedDisplay;
+            timeLeft = parseInt(storedDisplay);
+        }
+        if (storedButton) {
+            playPauseBtn.textContent = storedButton;
+            isPaused = storedButton === '▶';
+        }
+        if (storedState === 'running') {
+            startTimer();
+        }
+    </script>
+</body>
+
+</html>
